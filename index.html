@@ -1401,10 +1401,10 @@
         <div class="duration-group">
           <input type="number" id="em-hours" min="0" max="23" placeholder="0">
           <span class="duration-unit">h</span>
-          <input type="number" id="em-minutes" min="0" max="59" placeholder="0">
+          <input type="number" id="em-minutes" min="0" max="59" step="15" placeholder="0">
           <span class="duration-unit">m</span>
         </div>
-        <div style="font-size:10px;color:var(--text-3);margin-top:4px;">Rounds up to nearest 15 min</div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:4px;">↑↓ steps by 15 min · rounds to nearest 15</div>
       </div>
       <div>
         <label class="label" for="em-billable">Type</label>
@@ -1604,6 +1604,7 @@ function loadState() {
       const keep = new Set([...weekDays(0), ...weekDays(-1)]);
       state.log = s.log.filter(e => keep.has(e.date));
     }
+    invalidateTaskHistoryCache();
   } catch(e) { console.warn('Load failed', e); }
 }
 
@@ -2059,7 +2060,17 @@ function renderLogTab() {
     </tr>`;
   });
 
-  html += '</tbody></table>';
+  html += '</tbody>';
+
+  // Day total footer
+  const dayTotal = entries.reduce((sum, e) => sum + e.minutes, 0);
+  html += `<tfoot><tr class="ds-total-row">
+    <td>Day total</td><td></td>
+    <td class="mono" style="text-align:right;">${fmtMins(dayTotal)}</td>
+    <td colspan="2"></td>
+  </tr></tfoot>`;
+
+  html += '</table>';
   body.innerHTML = html;
 }
 
@@ -2152,8 +2163,8 @@ function renderDailySummary() {
     <th>Tasks</th>
     <th class="right" style="width:12%">Time</th>
     <th class="right" style="width:15%">Type</th>
+    <th class="right" style="width:36px;" title="Copy tasks">⎘</th>
     <th class="right" style="width:52px;" title="Mark as logged in PSA">PSA</th>
-    <th style="width:36px;"></th>
   </tr></thead><tbody>`;
 
   sortedOrder.forEach(pid => {
@@ -2167,14 +2178,12 @@ function renderDailySummary() {
       <td class="mono">${fmtDecimal(g.minutes)}</td>
       <td class="right"><span class="badge ${g.billable ? 'badge-bill' : 'badge-nonbill'}">${g.billable ? 'Billable' : 'Non-bill.'}</span></td>
       <td class="right">
+        <button class="btn-row-action copy" data-ids="${idsAttr}" onclick="copyGroupTasks(this)" title="Copy tasks">⎘</button>
+      </td>
+      <td class="right">
         <button class="psa-btn ${logged ? 'psa-checked' : ''}"
           onclick="togglePSA('${filterDate}', ${pid})"
           title="${logged ? 'Logged to PSA — click to unmark' : 'Mark as logged to PSA'}">✓</button>
-      </td>
-      <td class="actions">
-        <div class="row-actions">
-          <button class="btn-row-action copy" data-ids="${idsAttr}" onclick="copyGroupTasks(this)" title="Copy tasks">⎘</button>
-        </div>
       </td>
     </tr>`;
   });
@@ -2259,11 +2268,11 @@ function renderSummary() {
     days.forEach(d => {
       const mins  = p.days[d] || 0;
       const isTod = d === today;
-      html += `<td class="${isTod ? 'today-col' : ''} ${!mins ? 'zero' : ''}">${mins ? fmtMins(mins) : '—'}</td>`;
+      html += `<td class="${isTod ? 'today-col' : ''} ${!mins ? 'zero' : ''}">${mins ? fmtDecimal(mins) : '—'}</td>`;
     });
 
     // Total cell
-    html += `<td style="color:var(--hyland-navy);font-weight:600;">${fmtMins(p.total)}</td>`;
+    html += `<td style="color:var(--hyland-navy);font-weight:600;">${p.total ? fmtDecimal(p.total) : '—'}</td>`;
 
     // Target cell
     if (target) {
@@ -2272,7 +2281,7 @@ function renderSummary() {
       const cls     = over ? 'on-track' : (pct >= 60 ? 'at-risk' : 'behind');
       const barClr  = over ? 'var(--green-solid)' : (pct >= 60 ? '#c8930a' : 'var(--red)');
       html += `<td class="target-cell">
-        <span class="target-fraction ${cls}">${fmtMins(p.total)} / ${fmtMins(target)}</span>
+        <span class="target-fraction ${cls}">${fmtDecimal(p.total)} / ${fmtDecimal(target)}</span>
         <div class="target-mini-bar"><div class="target-mini-fill" style="width:${pct}%;background:${barClr};"></div></div>
       </td>`;
     } else {
@@ -2286,9 +2295,9 @@ function renderSummary() {
   days.forEach(d => {
     const mins  = dayTotals[d] || 0;
     const isTod = d === today;
-    html += `<td class="${isTod ? 'today-col' : ''} ${!mins ? 'zero' : ''}">${mins ? fmtMins(mins) : '—'}</td>`;
+    html += `<td class="${isTod ? 'today-col' : ''} ${!mins ? 'zero' : ''}">${mins ? fmtDecimal(mins) : '—'}</td>`;
   });
-  html += `<td>${fmtMins(total)}</td><td></td></tr>`;
+  html += `<td>${total ? fmtDecimal(total) : '—'}</td><td></td></tr>`;
   html += '</tbody></table>';
   container.innerHTML = html;
 }
@@ -2398,12 +2407,14 @@ function openEntryModal(id) {
   modal.classList.add('open');
 
   // Populate day picker — current week + previous week
-  const allDays = [...weekDays(-1), ...weekDays(0)];
-  const selDay  = document.getElementById('em-date');
-  selDay.innerHTML = allDays.map(d => {
-    const isDefault = d === (logDayFilter && allDays.includes(logDayFilter) ? logDayFilter : todayKey());
-    return `<option value="${d}" ${isDefault ? 'selected' : ''}>${dayLabel(d)} ${weekDays(-1).includes(d) ? '(prev)' : ''}</option>`;
-  }).join('');
+  const prevDays = weekDays(-1);
+  const currDays = weekDays(0);
+  const allDays  = [...prevDays, ...currDays];
+  const selDay   = document.getElementById('em-date');
+  const defDay   = logDayFilter && allDays.includes(logDayFilter) ? logDayFilter : todayKey();
+  selDay.innerHTML = allDays.map(d =>
+    `<option value="${d}" ${d === defDay ? 'selected' : ''}>${dayLabel(d)} ${prevDays.includes(d) ? '(prev)' : ''}</option>`
+  ).join('');
 
   // Populate project picker
   const selProj = document.getElementById('em-project');
@@ -2581,13 +2592,19 @@ function setUtilTarget(val) {
 // ── Task autocomplete ─────────────────────────
 let acMatches = [[], []];
 
+let _taskHistoryCache = null;
+
+function invalidateTaskHistoryCache() { _taskHistoryCache = null; }
+
 function getTaskHistory() {
-  // Persistent cross-week history, supplemented by this week's log
-  const seen = new Set();
+  if (_taskHistoryCache) return _taskHistoryCache;
+  const seen   = new Set();
   const result = [];
-  const add = t => { if (t && !seen.has(t)) { seen.add(t); result.push(t); } };
+  const add    = t => { if (t && !seen.has(t)) { seen.add(t); result.push(t); } };
   (state.taskHistory || []).forEach(add);
-  [...state.log].reverse().map(e => e.task).forEach(add);
+  // Traverse backwards for recency order — avoids spread + reverse + map allocations
+  for (let i = state.log.length - 1; i >= 0; i--) add(state.log[i].task);
+  _taskHistoryCache = result;
   return result;
 }
 
@@ -2595,6 +2612,7 @@ function addToTaskHistory(task) {
   if (!task || !task.trim()) return;
   const h = state.taskHistory || [];
   state.taskHistory = [task, ...h.filter(t => t !== task)].slice(0, 300);
+  invalidateTaskHistoryCache();
 }
 
 function setDailyTarget(val) {
