@@ -1043,15 +1043,6 @@
   }
   .btn-ai-feature:hover { background: var(--hyland-navy-soft); color: var(--hyland-navy); }
 
-  .ai-proj-list label {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 0;
-    border-bottom: 0.5px solid var(--border);
-    cursor: pointer; font-size: 13px;
-  }
-  .ai-proj-list label:last-child { border-bottom: none; }
-  .ai-proj-list input[type=checkbox] { accent-color: var(--hyland-navy); width:15px; height:15px; flex-shrink:0; }
-
   .ai-api-key-input {
     flex: 1; height: 28px; font-size: 12px; padding: 0 8px;
     border: 0.5px solid var(--border-med); border-radius: var(--radius-xs);
@@ -1382,8 +1373,7 @@
       </div>
       <div class="day-filter" id="daily-summary-day-filter"></div>
       <div id="daily-summary-body"></div>
-      <div style="margin-top:1rem;padding-top:0.75rem;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <button class="btn-ai-feature" onclick="generateDailyNarrative()" title="Generate a professional paragraph summarizing today's work">✨ Day Summary</button>
+      <div style="margin-top:1rem;padding-top:0.75rem;border-top:0.5px solid var(--border);text-align:right;">
         <a href="https://hyland--pse.vf.force.com/apex/PSATimecardEntry" target="_blank" rel="noopener noreferrer"
            style="font-size:12px;color:var(--hyland-navy);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:5px;opacity:0.7;transition:opacity 0.15s;"
            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
@@ -1446,10 +1436,7 @@
           <div class="week-chip-dot"></div>
           <span id="week-label"></span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn-ai-feature" onclick="openEmailDraft()" title="Draft a weekly status email for selected projects">✨ Draft Email</button>
-          <button class="btn-danger" onclick="resetWeek()">Reset week</button>
-        </div>
+        <button class="btn-danger" onclick="resetWeek()">Reset week</button>
       </div>
       <div class="week-table-wrap">
         <div id="week-table-container"></div>
@@ -3286,16 +3273,14 @@ let aiApplyCallback = null;
 
 function openAIModal(title) {
   document.getElementById('ai-modal-title').textContent = title;
-  document.getElementById('ai-proj-picker').style.display = 'none';
   document.getElementById('ai-loading').style.display    = 'none';
   document.getElementById('ai-result').style.display     = 'none';
   document.getElementById('ai-modal').style.display      = 'flex';
 }
 
 function showAILoading() {
-  document.getElementById('ai-proj-picker').style.display = 'none';
-  document.getElementById('ai-loading').style.display    = 'flex';
-  document.getElementById('ai-result').style.display     = 'none';
+  document.getElementById('ai-loading').style.display = 'flex';
+  document.getElementById('ai-result').style.display  = 'none';
 }
 
 function showAIResult(text, applyFn = null) {
@@ -3304,7 +3289,7 @@ function showAIResult(text, applyFn = null) {
   document.getElementById('ai-result-text').value     = text;
   const applyBtn = document.getElementById('ai-apply-btn');
   aiApplyCallback = applyFn || null;
-  applyBtn.style.display = applyFn ? '' : 'none';
+  applyBtn.style.display = applyFn ? 'inline-flex' : 'none';
 }
 
 function showAIError(msg) {
@@ -3374,122 +3359,6 @@ Return ONLY the cleaned task text. Nothing else.`;
   }
 }
 
-// ── Daily narrative ───────────────────────────
-async function generateDailyNarrative() {
-  const days       = weekDays(weekOffset);
-  const filterDate = dailySummaryFilter && days.includes(dailySummaryFilter)
-    ? dailySummaryFilter : defaultDayForOffset(weekOffset);
-  const entries    = state.log.filter(e => e.date === filterDate);
-  if (!entries.length) { alert('No entries logged for this day yet.'); return; }
-
-  openAIModal('✨ Daily Summary');
-  showAILoading();
-
-  const projMap = {};
-  entries.forEach(e => {
-    if (!projMap[e.projectId]) projMap[e.projectId] = { name: e.projectName, billable: e.billable, minutes: 0, tasks: [] };
-    projMap[e.projectId].minutes += e.minutes;
-    if (e.task) projMap[e.projectId].tasks.push(e.task);
-  });
-
-  const totalMins = entries.reduce((s, e) => s + e.minutes, 0);
-  const lines     = Object.values(projMap)
-    .map(p => `- ${p.name} (${fmtDecimal(p.minutes)}h, ${p.billable ? 'billable' : 'non-billable'}): ${p.tasks.join('; ') || 'no task notes'}`)
-    .join('\n');
-
-  const system = 'You are a professional services project manager at Hyland writing a concise daily work summary. Write in first person, past tense. Be specific about accomplishments.';
-  const user   = `Write a professional 3–5 sentence daily summary suitable for a status update to a manager or colleagues.
-
-Date: ${dayLabel(filterDate)}
-Total hours: ${fmtDecimal(totalMins)}h
-Work logged:
-${lines}
-
-Focus on what was accomplished, not just time spent. Do not include specific hour amounts. No headers or bullet points — just flowing prose.`;
-
-  try {
-    const result = await callClaude(system, user);
-    showAIResult(result.trim());
-  } catch(e) {
-    showAIError(e.message === 'no_key' ? 'No API key configured. Open Settings → AI.' : e.message);
-  }
-}
-
-// ── Weekly email draft ────────────────────────
-function openEmailDraft() {
-  const days    = weekDays(weekOffset);
-  const weekLog = state.log.filter(e => days.includes(e.date));
-  if (!weekLog.length) { alert('No entries logged this week yet.'); return; }
-
-  const projMap = {};
-  weekLog.forEach(e => {
-    if (!projMap[e.projectId]) projMap[e.projectId] = { id: e.projectId, name: e.projectName, billable: e.billable, minutes: 0 };
-    projMap[e.projectId].minutes += e.minutes;
-  });
-
-  const projects = sortProjectList(Object.values(projMap));
-
-  openAIModal('✨ Draft Weekly Email');
-  document.getElementById('ai-proj-list').innerHTML = projects.map(p => `
-    <label>
-      <input type="checkbox" data-pid="${p.id}" checked>
-      <span style="flex:1;">${p.name}</span>
-      <span style="font-size:11px;color:var(--text-3);">${fmtDecimal(p.minutes)}h</span>
-    </label>`).join('');
-  document.getElementById('ai-proj-picker').style.display = 'block';
-}
-
-async function generateEmailFromPicker() {
-  const days    = weekDays(weekOffset);
-  const weekLog = state.log.filter(e => days.includes(e.date));
-
-  const checked     = document.querySelectorAll('#ai-proj-list input[type=checkbox]:checked');
-  const selectedIds = new Set([...checked].map(cb => parseInt(cb.dataset.pid)));
-  if (!selectedIds.size) { alert('Select at least one project.'); return; }
-
-  showAILoading();
-
-  const projMap = {};
-  weekLog.filter(e => selectedIds.has(e.projectId)).forEach(e => {
-    if (!projMap[e.projectId]) projMap[e.projectId] = { name: e.projectName, billable: e.billable, minutes: 0, tasks: new Set() };
-    projMap[e.projectId].minutes += e.minutes;
-    if (e.task) e.task.split(/[,;]/).map(t => t.trim()).filter(Boolean).forEach(t => projMap[e.projectId].tasks.add(t));
-  });
-
-  const wDays     = weekDays(weekOffset);
-  const fmt       = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const weekRange = `${fmt(wDays[0])} – ${fmt(wDays[6])}, ${new Date(wDays[6] + 'T12:00:00').getFullYear()}`;
-
-  const selected  = Object.values(projMap);
-  const totalMins = selected.reduce((s, p) => s + p.minutes, 0);
-  const lines     = selected.map(p =>
-    `- ${p.name} (${fmtDecimal(p.minutes)}h, ${p.billable ? 'billable' : 'non-billable'})\n  Activities: ${[...p.tasks].join('; ') || 'general project work'}`
-  ).join('\n');
-
-  const system = 'You are a professional services project manager at Hyland Professional Services writing a concise weekly status email to your manager.';
-  const user   = `Draft a professional weekly status email based on the following time log.
-
-Week: ${weekRange}
-Total hours: ${fmtDecimal(totalMins)}h
-
-Projects:
-${lines}
-
-Format:
-Subject: [concise subject line]
-
-[Email body: brief overview sentence, then highlight key activities per project, close professionally]
-
-Keep the body to 150–200 words. Be specific about accomplishments. Sign off as "Kenneth".`;
-
-  try {
-    const result = await callClaude(system, user);
-    showAIResult(result.trim());
-  } catch(e) {
-    showAIError(e.message === 'no_key' ? 'No API key configured. Open Settings → AI.' : e.message);
-  }
-}
-
 // ── PWA: Service Worker ───────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -3533,16 +3402,6 @@ function installApp() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <h3 id="ai-modal-title" style="font-size:16px;font-weight:600;color:var(--hyland-navy);">AI Assistant</h3>
       <button style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-3);line-height:1;" onclick="closeAIModal()">&times;</button>
-    </div>
-
-    <!-- Project picker (email draft step 1) -->
-    <div id="ai-proj-picker" style="display:none;">
-      <div style="font-size:13px;color:var(--text-2);margin-bottom:10px;">Select projects to include in the email:</div>
-      <div class="ai-proj-list" id="ai-proj-list" style="max-height:240px;overflow-y:auto;"></div>
-      <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
-        <button class="btn-nav" onclick="closeAIModal()">Cancel</button>
-        <button class="btn-add-proj" onclick="generateEmailFromPicker()">✨ Generate Email</button>
-      </div>
     </div>
 
     <!-- Loading -->
