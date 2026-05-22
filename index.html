@@ -998,7 +998,66 @@
   [data-theme="dark"] .util-chip-pct.mid         { color: #d4a017; }
   [data-theme="dark"] .util-pct.mid              { color: #d4a017; }
 
-  /* ── Restore banner ── */
+  /* ── AI Features ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border-med);
+    border-top-color: var(--hyland-navy);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+
+  .ai-result-textarea {
+    width: 100%; min-height: 200px; max-height: 400px;
+    padding: 10px 12px;
+    font-family: var(--sans); font-size: 13px; line-height: 1.65;
+    color: var(--text); background: var(--surface);
+    border: 0.5px solid var(--border-med);
+    border-radius: var(--radius-sm);
+    resize: vertical; outline: none;
+    transition: border-color 0.12s;
+  }
+  .ai-result-textarea:focus { border-color: var(--hyland-navy-mid); }
+
+  .btn-ai-row {
+    width: 22px; height: 22px;
+    border: none; background: transparent;
+    cursor: pointer; font-size: 12px;
+    opacity: 0.4; transition: opacity 0.12s;
+    padding: 0; line-height: 1; vertical-align: middle;
+  }
+  .btn-ai-row:hover { opacity: 1; }
+
+  .btn-ai-feature {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 26px; padding: 0 10px;
+    border: 0.5px solid var(--border-med);
+    border-radius: var(--radius-xs);
+    background: transparent;
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
+    color: var(--text-2); cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .btn-ai-feature:hover { background: var(--hyland-navy-soft); color: var(--hyland-navy); }
+
+  .ai-proj-list label {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border);
+    cursor: pointer; font-size: 13px;
+  }
+  .ai-proj-list label:last-child { border-bottom: none; }
+  .ai-proj-list input[type=checkbox] { accent-color: var(--hyland-navy); width:15px; height:15px; flex-shrink:0; }
+
+  .ai-api-key-input {
+    flex: 1; height: 28px; font-size: 12px; padding: 0 8px;
+    border: 0.5px solid var(--border-med); border-radius: var(--radius-xs);
+    background: var(--surface); color: var(--text); outline: none;
+    font-family: var(--mono);
+  }
   .restore-banner {
     display: none;
     align-items: center; justify-content: space-between;
@@ -1323,7 +1382,8 @@
       </div>
       <div class="day-filter" id="daily-summary-day-filter"></div>
       <div id="daily-summary-body"></div>
-      <div style="margin-top:1rem;padding-top:0.75rem;border-top:0.5px solid var(--border);text-align:right;">
+      <div style="margin-top:1rem;padding-top:0.75rem;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <button class="btn-ai-feature" onclick="generateDailyNarrative()" title="Generate a professional paragraph summarizing today's work">✨ Day Summary</button>
         <a href="https://hyland--pse.vf.force.com/apex/PSATimecardEntry" target="_blank" rel="noopener noreferrer"
            style="font-size:12px;color:var(--hyland-navy);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:5px;opacity:0.7;transition:opacity 0.15s;"
            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
@@ -1386,7 +1446,10 @@
           <div class="week-chip-dot"></div>
           <span id="week-label"></span>
         </div>
-        <button class="btn-danger" onclick="resetWeek()">Reset week</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-ai-feature" onclick="openEmailDraft()" title="Draft a weekly status email for selected projects">✨ Draft Email</button>
+          <button class="btn-danger" onclick="resetWeek()">Reset week</button>
+        </div>
       </div>
       <div class="week-table-wrap">
         <div id="week-table-container"></div>
@@ -1464,6 +1527,22 @@
             <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode(this.checked)">
             <span class="toggle-track"></span>
           </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">AI</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:8px;line-height:1.5;">
+          Paste your Anthropic API key to enable AI features (task cleanup, daily summary, weekly email). Stored locally only.
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+          <input type="password" id="ai-api-key-input" class="ai-api-key-input"
+            placeholder="sk-ant-api03-…"
+            onchange="saveAIKey(this.value)">
+          <button class="btn-add-proj" id="ai-test-btn" onclick="testAIKey()" style="min-width:58px;">Test</button>
+        </div>
+        <div id="ai-key-note" style="font-size:10px;color:var(--text-3);">
+          Get your key at <span style="text-decoration:underline;">console.anthropic.com</span>
         </div>
       </div>
 
@@ -2201,6 +2280,7 @@ function renderDailySummary() {
       <td class="right"><span class="badge ${g.billable ? 'badge-bill' : 'badge-nonbill'}">${g.billable ? 'Billable' : 'Non-bill.'}</span></td>
       <td class="right">
         <button class="btn-row-action copy" data-ids="${idsAttr}" onclick="copyGroupTasks(this)" title="Copy tasks">⎘</button>
+        <button class="btn-ai-row" onclick="cleanupTaskText(${pid}, '${filterDate}')" title="AI: Clean up &amp; optimise for PSA">✨</button>
       </td>
       <td class="right">
         <button class="psa-btn ${logged ? 'psa-checked' : ''}"
@@ -2743,6 +2823,8 @@ function hideAC(t) {
 function openSettings() {
   renderSettingsProjects();
   renderBackupSection();
+  const aiInp = document.getElementById('ai-api-key-input');
+  if (aiInp) aiInp.value = getAIKey() ? '••••••••••••••••' : '';
   const util  = document.getElementById('util-target-input');
   if (util)  util.value  = state.settings?.utilTarget  ?? 80;
   const daily = document.getElementById('daily-target-input');
@@ -3146,6 +3228,268 @@ async function checkForBackupRestore() {
   } catch (e) { console.warn('[Backup] Init check failed:', e); }
 }
 
+// ── AI Features ──────────────────────────────
+const AI_KEY = 'ett_ai_key';
+
+function saveAIKey(val) {
+  if (val.trim()) localStorage.setItem(AI_KEY, val.trim());
+  else localStorage.removeItem(AI_KEY);
+}
+function getAIKey() { return localStorage.getItem(AI_KEY) || ''; }
+
+async function callClaude(systemPrompt, userPrompt) {
+  const key = getAIKey();
+  if (!key) throw new Error('no_key');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+async function testAIKey() {
+  const btn  = document.getElementById('ai-test-btn');
+  const note = document.getElementById('ai-key-note');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    await callClaude('You are a test assistant.', 'Reply with only the word OK.');
+    btn.textContent = '✓ OK'; btn.style.background = 'var(--green-bg)'; btn.style.color = 'var(--green)';
+    note.textContent = 'API key is working'; note.style.color = 'var(--green)';
+  } catch(e) {
+    btn.textContent = '✗'; btn.style.background = 'var(--red-bg)'; btn.style.color = 'var(--red)';
+    note.textContent = e.message === 'no_key' ? 'Enter your API key first' : `Error: ${e.message}`;
+    note.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => {
+      btn.textContent = 'Test'; btn.style.background = ''; btn.style.color = '';
+      note.style.color = ''; note.textContent = 'Get your key at console.anthropic.com';
+    }, 4000);
+  }
+}
+
+// AI Modal control
+let aiApplyCallback = null;
+
+function openAIModal(title) {
+  document.getElementById('ai-modal-title').textContent = title;
+  document.getElementById('ai-proj-picker').style.display = 'none';
+  document.getElementById('ai-loading').style.display    = 'none';
+  document.getElementById('ai-result').style.display     = 'none';
+  document.getElementById('ai-modal').style.display      = 'flex';
+}
+
+function showAILoading() {
+  document.getElementById('ai-proj-picker').style.display = 'none';
+  document.getElementById('ai-loading').style.display    = 'flex';
+  document.getElementById('ai-result').style.display     = 'none';
+}
+
+function showAIResult(text, applyFn = null) {
+  document.getElementById('ai-loading').style.display = 'none';
+  document.getElementById('ai-result').style.display  = 'block';
+  document.getElementById('ai-result-text').value     = text;
+  const applyBtn = document.getElementById('ai-apply-btn');
+  aiApplyCallback = applyFn || null;
+  applyBtn.style.display = applyFn ? '' : 'none';
+}
+
+function showAIError(msg) {
+  showAIResult(`Could not generate a response.\n\n${msg}\n\nCheck your API key in Settings → AI.`);
+}
+
+function closeAIModal() {
+  document.getElementById('ai-modal').style.display = 'none';
+  aiApplyCallback = null;
+}
+
+function copyAIResult() {
+  const text = document.getElementById('ai-result-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('ai-copy-btn');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function applyAIResult() {
+  if (aiApplyCallback) { aiApplyCallback(document.getElementById('ai-result-text').value); closeAIModal(); }
+}
+
+// ── Task cleanup ──────────────────────────────
+function getGroupedEntry(pid, filterDate) {
+  const entries = state.log.filter(e => e.date === filterDate && e.projectId === pid);
+  if (!entries.length) return null;
+  return {
+    projectName: entries[0].projectName,
+    billable:    entries[0].billable,
+    minutes:     entries.reduce((s, e) => s + e.minutes, 0),
+    tasks:       [...new Set(entries.map(e => e.task).filter(Boolean))],
+  };
+}
+
+async function cleanupTaskText(pid, filterDate) {
+  const g = getGroupedEntry(pid, filterDate);
+  if (!g) return;
+  openAIModal('✨ Clean Up Task Description');
+  showAILoading();
+  const system = 'You are a professional timesheet assistant for a technology consulting firm (Hyland Professional Services). You rewrite task notes for professional timesheets and PSA billing records.';
+  const user   = `Rewrite the following task description to be clear, professional, and suitable for a client-facing timesheet.
+
+Rules:
+- Expand all abbreviations and acronyms
+- Use professional language and complete sentences
+- Be concise: 1–2 sentences maximum
+- Preserve all meaningful information from the original
+- Use past tense
+- Do NOT add information not implied by the original
+
+Project: ${g.projectName} (${g.billable ? 'Billable' : 'Non-billable'})
+Date: ${dayLabel(filterDate)}
+Hours logged: ${fmtDecimal(g.minutes)}
+Original tasks: "${g.tasks.join('; ')}"
+
+Return ONLY the cleaned task text. Nothing else.`;
+  try {
+    const result = await callClaude(system, user);
+    showAIResult(result.trim(), cleaned => {
+      state.log.forEach(e => { if (e.projectId === pid && e.date === filterDate) e.task = cleaned; });
+      saveState(); renderDailySummary();
+    });
+  } catch(e) {
+    showAIError(e.message === 'no_key' ? 'No API key configured. Open Settings → AI.' : e.message);
+  }
+}
+
+// ── Daily narrative ───────────────────────────
+async function generateDailyNarrative() {
+  const days       = weekDays(weekOffset);
+  const filterDate = dailySummaryFilter && days.includes(dailySummaryFilter)
+    ? dailySummaryFilter : defaultDayForOffset(weekOffset);
+  const entries    = state.log.filter(e => e.date === filterDate);
+  if (!entries.length) { alert('No entries logged for this day yet.'); return; }
+
+  openAIModal('✨ Daily Summary');
+  showAILoading();
+
+  const projMap = {};
+  entries.forEach(e => {
+    if (!projMap[e.projectId]) projMap[e.projectId] = { name: e.projectName, billable: e.billable, minutes: 0, tasks: [] };
+    projMap[e.projectId].minutes += e.minutes;
+    if (e.task) projMap[e.projectId].tasks.push(e.task);
+  });
+
+  const totalMins = entries.reduce((s, e) => s + e.minutes, 0);
+  const lines     = Object.values(projMap)
+    .map(p => `- ${p.name} (${fmtDecimal(p.minutes)}h, ${p.billable ? 'billable' : 'non-billable'}): ${p.tasks.join('; ') || 'no task notes'}`)
+    .join('\n');
+
+  const system = 'You are a professional services project manager at Hyland writing a concise daily work summary. Write in first person, past tense. Be specific about accomplishments.';
+  const user   = `Write a professional 3–5 sentence daily summary suitable for a status update to a manager or colleagues.
+
+Date: ${dayLabel(filterDate)}
+Total hours: ${fmtDecimal(totalMins)}h
+Work logged:
+${lines}
+
+Focus on what was accomplished, not just time spent. Do not include specific hour amounts. No headers or bullet points — just flowing prose.`;
+
+  try {
+    const result = await callClaude(system, user);
+    showAIResult(result.trim());
+  } catch(e) {
+    showAIError(e.message === 'no_key' ? 'No API key configured. Open Settings → AI.' : e.message);
+  }
+}
+
+// ── Weekly email draft ────────────────────────
+function openEmailDraft() {
+  const days    = weekDays(weekOffset);
+  const weekLog = state.log.filter(e => days.includes(e.date));
+  if (!weekLog.length) { alert('No entries logged this week yet.'); return; }
+
+  const projMap = {};
+  weekLog.forEach(e => {
+    if (!projMap[e.projectId]) projMap[e.projectId] = { id: e.projectId, name: e.projectName, billable: e.billable, minutes: 0 };
+    projMap[e.projectId].minutes += e.minutes;
+  });
+
+  const projects = sortProjectList(Object.values(projMap));
+
+  openAIModal('✨ Draft Weekly Email');
+  document.getElementById('ai-proj-list').innerHTML = projects.map(p => `
+    <label>
+      <input type="checkbox" data-pid="${p.id}" checked>
+      <span style="flex:1;">${p.name}</span>
+      <span style="font-size:11px;color:var(--text-3);">${fmtDecimal(p.minutes)}h</span>
+    </label>`).join('');
+  document.getElementById('ai-proj-picker').style.display = 'block';
+}
+
+async function generateEmailFromPicker() {
+  const days    = weekDays(weekOffset);
+  const weekLog = state.log.filter(e => days.includes(e.date));
+
+  const checked     = document.querySelectorAll('#ai-proj-list input[type=checkbox]:checked');
+  const selectedIds = new Set([...checked].map(cb => parseInt(cb.dataset.pid)));
+  if (!selectedIds.size) { alert('Select at least one project.'); return; }
+
+  showAILoading();
+
+  const projMap = {};
+  weekLog.filter(e => selectedIds.has(e.projectId)).forEach(e => {
+    if (!projMap[e.projectId]) projMap[e.projectId] = { name: e.projectName, billable: e.billable, minutes: 0, tasks: new Set() };
+    projMap[e.projectId].minutes += e.minutes;
+    if (e.task) e.task.split(/[,;]/).map(t => t.trim()).filter(Boolean).forEach(t => projMap[e.projectId].tasks.add(t));
+  });
+
+  const wDays     = weekDays(weekOffset);
+  const fmt       = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const weekRange = `${fmt(wDays[0])} – ${fmt(wDays[6])}, ${new Date(wDays[6] + 'T12:00:00').getFullYear()}`;
+
+  const selected  = Object.values(projMap);
+  const totalMins = selected.reduce((s, p) => s + p.minutes, 0);
+  const lines     = selected.map(p =>
+    `- ${p.name} (${fmtDecimal(p.minutes)}h, ${p.billable ? 'billable' : 'non-billable'})\n  Activities: ${[...p.tasks].join('; ') || 'general project work'}`
+  ).join('\n');
+
+  const system = 'You are a professional services project manager at Hyland Professional Services writing a concise weekly status email to your manager.';
+  const user   = `Draft a professional weekly status email based on the following time log.
+
+Week: ${weekRange}
+Total hours: ${fmtDecimal(totalMins)}h
+
+Projects:
+${lines}
+
+Format:
+Subject: [concise subject line]
+
+[Email body: brief overview sentence, then highlight key activities per project, close professionally]
+
+Keep the body to 150–200 words. Be specific about accomplishments. Sign off as "Kenneth".`;
+
+  try {
+    const result = await callClaude(system, user);
+    showAIResult(result.trim());
+  } catch(e) {
+    showAIError(e.message === 'no_key' ? 'No API key configured. Open Settings → AI.' : e.message);
+  }
+}
+
 // ── PWA: Service Worker ───────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -3183,5 +3527,41 @@ function installApp() {
   });
 }
 </script>
+<!-- AI MODAL -->
+<div class="modal-backdrop" id="ai-modal" style="display:none;" onclick="if(event.target===this)closeAIModal()">
+  <div class="modal" style="max-width:560px;width:90%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 id="ai-modal-title" style="font-size:16px;font-weight:600;color:var(--hyland-navy);">AI Assistant</h3>
+      <button style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-3);line-height:1;" onclick="closeAIModal()">&times;</button>
+    </div>
+
+    <!-- Project picker (email draft step 1) -->
+    <div id="ai-proj-picker" style="display:none;">
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:10px;">Select projects to include in the email:</div>
+      <div class="ai-proj-list" id="ai-proj-list" style="max-height:240px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+        <button class="btn-nav" onclick="closeAIModal()">Cancel</button>
+        <button class="btn-add-proj" onclick="generateEmailFromPicker()">✨ Generate Email</button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="ai-loading" style="display:none;flex-direction:column;align-items:center;gap:12px;padding:28px 0;">
+      <div class="ai-spinner"></div>
+      <div style="font-size:13px;color:var(--text-2);">Generating…</div>
+    </div>
+
+    <!-- Result -->
+    <div id="ai-result" style="display:none;">
+      <textarea id="ai-result-text" class="ai-result-textarea"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn-nav" id="ai-apply-btn" style="display:none;" onclick="applyAIResult()">Apply to Entries</button>
+        <button class="btn-nav" id="ai-copy-btn" onclick="copyAIResult()">Copy</button>
+        <button class="btn-add-proj" onclick="closeAIModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
