@@ -120,6 +120,25 @@
 
   .topbar-actions { display: flex; gap: 8px; }
 
+  .backup-status-btn {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border: 0.5px solid var(--border-med);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.12s;
+    flex-shrink: 0;
+  }
+  .backup-status-btn:hover { background: var(--surface2); }
+  .backup-status-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .backup-status-dot.connected { background: var(--green-solid); }
+  .backup-status-dot.reconnect { background: var(--amber); animation: pulse 1.5s infinite; }
+
   .btn-nav {
     height: 30px;
     padding: 0 12px;
@@ -1137,6 +1156,9 @@
   </div>
   <div class="topbar-actions">
     <button class="btn-nav" id="btn-install" style="display:none;" onclick="installApp()">⊕ Install App</button>
+    <button class="backup-status-btn" id="backup-status-btn" onclick="openSettings()" title="Backup status">
+      <span class="backup-status-dot" id="backup-status-dot"></span>
+    </button>
     <button class="btn-nav" onclick="exportCSV()">Export CSV</button>
     <button class="btn-nav" onclick="location.reload()">↺ Refresh</button>
     <button class="btn-nav" onclick="openSettings()" title="Settings" style="font-size:15px;padding:0 9px;">⚙</button>
@@ -2572,6 +2594,7 @@ function init() {
   populateSelects();
   restoreTimerState();
   updateWeekNav();
+  updateBackupIndicator();
   document.getElementById('log-count').textContent = todayEntries().length;
   renderDailyMeter();
   applyTimerUI(0, 'idle'); applyTimerUI(1, 'idle');
@@ -2922,6 +2945,7 @@ function triggerAutoBackup() {
       if (perm !== 'granted') return; // Don't prompt mid-session
       await writeBackupFile(backupHandle);
       renderBackupSection();
+      updateBackupIndicator();
     } catch (e) { console.warn('[Backup] Auto-save failed:', e); }
   }, 2000);
 }
@@ -3012,7 +3036,39 @@ async function unlinkBackupFile() {
   renderBackupSection();
 }
 
-// Render the backup section in Settings
+// Topbar indicator
+async function updateBackupIndicator() {
+  const btn = document.getElementById('backup-status-btn');
+  const dot = document.getElementById('backup-status-dot');
+  if (!btn) return;
+
+  const meta = loadBackupMeta();
+  btn.style.display = 'flex';
+
+  if (!backupHandle || !meta) {
+    dot.className        = 'backup-status-dot';
+    dot.style.background = 'var(--red)';
+    btn.title            = 'No backup file linked — click to set one up';
+    return;
+  }
+
+  try {
+    const perm = await backupHandle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      dot.className        = 'backup-status-dot connected';
+      dot.style.background = '';
+      btn.title            = `Backup connected \u2014 ${meta.fileName}`;
+    } else {
+      dot.className        = 'backup-status-dot reconnect';
+      dot.style.background = '';
+      btn.title            = 'Backup needs reconnect \u2014 click to open Settings';
+    }
+  } catch {
+    dot.className        = 'backup-status-dot reconnect';
+    dot.style.background = '';
+    btn.title            = 'Backup status unknown \u2014 click to open Settings';
+  }
+}
 function renderBackupSection() {
   const el = document.getElementById('backup-section-content');
   if (!el) return;
@@ -3065,6 +3121,7 @@ function renderBackupSection() {
         <button class="btn-add-proj" style="background:var(--amber);" onclick="reconnectBackup()">Reconnect</button>
         <button class="btn-add-proj" style="background:transparent;color:var(--red);border:0.5px solid rgba(155,35,53,0.3);" onclick="unlinkBackupFile()">Unlink</button>`;
     }
+    updateBackupIndicator();
   }).catch(() => {});
 }
 
@@ -3085,6 +3142,7 @@ async function checkForBackupRestore() {
     backupHandle = handle;
     if (!localStorage.getItem(STORAGE_KEY)) showRestoreBanner();
     renderBackupSection();
+    updateBackupIndicator();
   } catch (e) { console.warn('[Backup] Init check failed:', e); }
 }
 
