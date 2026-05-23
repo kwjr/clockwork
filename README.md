@@ -1,4 +1,4 @@
-# Easy Time Tracker
+# Clockwork
 
 A lightweight, privacy-first time tracking Progressive Web App built for professional services work. Track billable and non-billable hours across multiple projects throughout the day, review daily summaries, and monitor weekly utilization — all without an account, subscription, or server.
 
@@ -91,7 +91,7 @@ The Daily Summary tab is designed to match the PSA entry flow:
 
 ## PWA Installation
 
-Easy Time Tracker is a Progressive Web App. Once deployed to HTTPS, it can be installed as a standalone app on desktop and mobile.
+Clockwork is a Progressive Web App. Once deployed to HTTPS, it can be installed as a standalone app on desktop and mobile.
 
 **Chrome / Edge (desktop):**
 1. Navigate to your deployed URL

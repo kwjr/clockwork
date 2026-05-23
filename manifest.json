@@ -1,6 +1,6 @@
 {
-  "name": "Easy Time Tracker",
-  "short_name": "Time Tracker",
+  "name": "Clockwork",
+  "short_name": "Clockwork",
   "description": "Daily and weekly time tracking for Hyland Professional Services",
   "start_url": "./index.html",
   "display": "standalone",

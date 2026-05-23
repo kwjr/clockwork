@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Easy Time Tracker</title>
+<title>Clockwork</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#191E5E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Easy Time Tracker">
+<meta name="apple-mobile-web-app-title" content="Clockwork">
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1201,7 +1201,7 @@
       </svg>
     </div>
     <div>
-      <span class="topbar-wordmark">Easy Time Tracker</span>
+      <span class="topbar-wordmark">Clockwork</span>
     </div>
   </div>
   <div class="topbar-actions">
@@ -3027,7 +3027,7 @@ async function linkBackupFile() {
   }
   try {
     const handle = await window.showSaveFilePicker({
-      suggestedName: 'easy-time-tracker-backup.json',
+      suggestedName: 'clockwork-backup.json',
       types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }],
     });
     await writeBackupFile(handle);

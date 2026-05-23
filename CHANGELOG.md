@@ -1,4 +1,4 @@
-# Easy Time Tracker — Changelog
+# Clockwork — Changelog
 
 All notable changes to this project are documented here.
 Versions are listed from newest to oldest.
@@ -9,7 +9,7 @@ Versions are listed from newest to oldest.
 
 ### Added
 - **File System Backup** — Settings → Backup section (Chrome / Edge only) with the following capabilities:
-  - **Link backup file** — opens a Save File picker so you can choose or create a local JSON file (`easy-time-tracker-backup.json` by default); the current state is written immediately on link
+  - **Link backup file** — opens a Save File picker so you can choose or create a local JSON file (`clockwork-backup.json` by default); the current state is written immediately on link
   - **Auto-save** — the backup file is written automatically 2 seconds after any data change (debounced), silently and without blocking the UI; the auto-save is skipped if write permission has not been granted for the current session
   - **Save now** — manual save button; requests write permission if needed
   - **Restore** — reads the linked backup file and restores all state: projects, log entries, settings, PSA logged status, and task autocomplete history; shows a confirmation with entry count and save timestamp
@@ -176,7 +176,7 @@ The JSON backup includes:
 
 ### Added
 - **Hyland brand colors** — primary navy `#191E5E`, rose accent `#EC5CBB`, peppermint-derived teal `#1A8C6F` applied throughout
-- **Sticky top navigation bar** — navy bar with clock SVG icon, "Easy Time Tracker" wordmark, Export CSV and Refresh actions
+- **Sticky top navigation bar** — navy bar with clock SVG icon, "Clockwork" wordmark, Export CSV and Refresh actions
 - **Typography** — Inter (UI) and IBM Plex Mono (timer displays) loaded via Google Fonts
 - **Timer card accent stripes** — 3px top border shifts from neutral (idle) → teal (running) → rose (paused)
 - **Tab styling** — active tab fills navy; inactive tabs neutral

@@ -1,4 +1,4 @@
-const CACHE = 'easy-time-tracker-v3';
+const CACHE = 'clockwork-v1';
 
 const PRECACHE = [
   './index.html',
